@@ -46,4 +46,4 @@ Never include personal `.bashrc` files, SSH keys, passwords, API keys, private b
 
 ## License
 
-See `LICENSE`.
+NINJA is licensed under the [MIT License](LICENSE).
