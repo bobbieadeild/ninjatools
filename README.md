@@ -19,13 +19,12 @@ It combines Linux+ command practice with practical system administration tools, 
 ## Commands
 
 ```bash
-ninja
-ninjaedit
-ninjareadme
-ninjatheme
-ninjabackup
-ninjarestore
-bashrl
+    ninja
+    ninjaedit
+    ninjatheme
+    ninjareadme
+    ninjabackup
+    ninjarestore
 ```
 
 ## Philosophy
