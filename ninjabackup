@@ -1,0 +1,640 @@
+#!/usr/bin/env bash
+
+set -u
+
+VERSION="3.1"
+BACKUP_DIR="$HOME/ninja-backups"
+TIMESTAMP="$(date +%Y%m%d-%H%M%S)"
+BACKUP_FILE="$BACKUP_DIR/ninja-backup-$TIMESTAMP.tar.gz"
+SHA_FILE="$BACKUP_FILE.sha256"
+
+OPTIONAL_LIBRARIES=(
+    "Ninja local libraries|$HOME/.local/lib/ninja"
+    "Ninja modules|$HOME/.local/share/ninja-modules"
+)
+
+cleanup() {
+    [[ -n "${WORK_ROOT:-}" && -d "$WORK_ROOT" ]] && rm -rf "$WORK_ROOT"
+}
+
+trap cleanup EXIT
+
+show_help() {
+    less -R <<'HELP'
+NINJABACKUP(1)
+
+USAGE
+    ninjabackup
+    ninjarestore
+    ninjabackup --help
+    ninjabackup --version
+
+BACKS UP
+    termtheme
+    ninja-cheatsheet.txt
+    ninjabackup
+    theme configuration
+    Ninja Bash integration snippet
+    dependency inventory
+    README
+    manifest
+    selected optional libraries
+
+DOES NOT BACK UP
+    Entire home directory
+    ~/.bash_history
+    ~/.cache
+    Entire WSL distro
+    Unrelated projects
+
+OUTPUT
+    ~/ninja-backups/
+
+Each backup receives:
+    .tar.gz
+    .tar.gz.sha256
+
+CUSTOM ITEMS
+    The backup asks whether you want to include an additional
+    file or directory.
+
+OPTIONAL LIBRARIES
+    Add entries to OPTIONAL_LIBRARIES in ninjabackup:
+
+    "Library Name|$HOME/path/to/library"
+
+PORTABILITY
+    Never blindly replace the destination ~/.bashrc.
+    Use the included config/bashrc-snippet.sh.
+HELP
+}
+
+case "${1:-}" in
+    --help|-h)
+        show_help
+        exit 0
+        ;;
+    --version|-v)
+        printf '%s\n' "ninjabackup $VERSION"
+        exit 0
+        ;;
+esac
+
+clear
+
+printf '%s\n' '============================================================'
+printf '%s\n' '                    NINJA BACKUP'
+printf '%s\n' '============================================================'
+printf '\n'
+printf 'Version : %s\n' "$VERSION"
+printf 'Created : %s\n' "$(date)"
+printf 'User    : %s\n' "${USER:-unknown}"
+printf 'Home    : %s\n' "$HOME"
+printf '\n'
+
+mkdir -p "$BACKUP_DIR"
+
+WORK_ROOT="$(mktemp -d)"
+STAGE="$WORK_ROOT/ninja-portable"
+
+mkdir -p \
+    "$STAGE/files" \
+    "$STAGE/config/termtheme" \
+    "$STAGE/dependencies" \
+    "$STAGE/optional-libraries" \
+    "$STAGE/docs"
+
+MANIFEST="$STAGE/dependencies/MANIFEST.txt"
+
+cat > "$MANIFEST" <<MANIFEST
+NINJA BACKUP MANIFEST
+=====================
+
+Version : $VERSION
+Created : $(date)
+Source  : $HOME
+
+CORE FILES
+----------
+MANIFEST
+
+add_file() {
+    local source="$1"
+    local destination="$2"
+    local label="$3"
+
+    if [[ -f "$source" ]]; then
+        cp -a "$source" "$destination"
+        printf '  [OK] %s\n' "$label"
+        printf '  %s\n' "${destination#"$STAGE"/}" >> "$MANIFEST"
+        return 0
+    fi
+
+    printf '  [!!] MISSING: %s\n' "$label"
+    return 1
+}
+
+add_dir() {
+    local source="$1"
+    local destination="$2"
+    local label="$3"
+
+    if [[ -d "$source" ]]; then
+        mkdir -p "$destination"
+        cp -a "$source"/. "$destination"/
+        printf '  [OK] %s\n' "$label"
+        printf '  %s/\n' "${destination#"$STAGE"/}" >> "$MANIFEST"
+        return 0
+    fi
+
+    printf '  [!!] MISSING: %s\n' "$label"
+    return 1
+}
+
+printf '%s\n' '[1] CORE NINJA FILES'
+printf '%s\n' '--------------------'
+
+add_file \
+    "$HOME/termtheme" \
+    "$STAGE/files/termtheme" \
+    "~/termtheme"
+
+add_file \
+    "$HOME/.local/share/ninja-cheatsheet.txt" \
+    "$STAGE/files/ninja-cheatsheet.txt" \
+    "~/.local/share/ninja-cheatsheet.txt"
+
+add_file \
+    "$HOME/.local/bin/ninjabackup" \
+    "$STAGE/files/ninjabackup" \
+    "~/.local/bin/ninjabackup"
+
+add_file \
+    "$HOME/.local/bin/ninjarestore" \
+    "$STAGE/files/ninjarestore" \
+    "~/.local/bin/ninjarestore"
+
+printf '\n'
+
+printf '%s\n' '[2] THEME CONFIGURATION'
+printf '%s\n' '-----------------------'
+
+add_dir \
+    "$HOME/.config/termtheme" \
+    "$STAGE/config/termtheme" \
+    "~/.config/termtheme"
+
+printf '\n'
+
+printf '%s\n' '[3] NINJA BASH INTEGRATION'
+printf '%s\n' '--------------------------'
+
+cat > "$STAGE/config/bashrc-snippet.sh" <<'SNIPPET'
+# ============================================================
+# NINJA SHELL INTEGRATION
+# Add these lines to the existing destination ~/.bashrc.
+# DO NOT replace the entire ~/.bashrc with this file.
+# ============================================================
+
+alias ninja='less -R ~/.local/share/ninja-cheatsheet.txt'
+alias superuser='ninja'
+alias poweruser='ninja'
+alias _ninja='ninja'
+
+alias ninjaedit='nano ~/.local/share/ninja-cheatsheet.txt'
+alias bashrl='source ~/.bashrc'
+
+ninjareadme() {
+    local file="$HOME/.local/share/ninja-cheatsheet.txt"
+    local line
+
+    line="$(grep -n -m1 '^ *NINJA COMMAND README$' "$file" 2>/dev/null | cut -d: -f1)"
+
+    if [[ -z "$line" ]]; then
+        echo "Ninja Command README not found."
+        return 1
+    fi
+
+    less +"$line" "$file"
+}
+
+ninjatheme() {
+    "$HOME/termtheme"
+}
+
+ninjabackup() {
+    "$HOME/.local/bin/ninjabackup"
+}
+
+ninjarestore() {
+    "$HOME/.local/bin/ninjarestore"
+}
+
+# ============================================================
+# END NINJA SHELL INTEGRATION
+# ============================================================
+SNIPPET
+
+printf '  [OK] config/bashrc-snippet.sh\n'
+printf '%s\n' 'config/bashrc-snippet.sh' >> "$MANIFEST"
+
+printf '\n'
+
+printf '%s\n' '[4] DEPENDENCY INVENTORY'
+printf '%s\n' '-----------------------'
+
+{
+    printf '%s\n' 'NINJA COMMAND DEPENDENCY CHECK'
+    printf '%s\n' '=============================='
+    printf '\n'
+
+    for cmd in bash less printf mkdir cp tar sed tr date sha256sum; do
+        if command -v "$cmd" >/dev/null 2>&1; then
+            printf '[OK]   %-12s %s\n' "$cmd" "$(command -v "$cmd")"
+        else
+            printf '[MISS] %-12s not found\n' "$cmd"
+        fi
+    done
+
+    printf '\nBash:\n'
+    bash --version | head -n 1
+
+    printf '\nOperating system:\n'
+    [[ -f /etc/os-release ]] && cat /etc/os-release
+} > "$STAGE/dependencies/commands.txt"
+
+printf '  [OK] dependencies/commands.txt\n'
+printf '%s\n' 'dependencies/commands.txt' >> "$MANIFEST"
+
+printf '\n'
+
+printf '%s\n' '[5] README'
+printf '%s\n' '----------'
+
+cat > "$STAGE/README.md" <<'README'
+# NINJA PORTABLE BACKUP
+
+This archive contains the portable Ninja shell environment.
+
+## Core files
+
+- `files/termtheme`
+- `files/ninja-cheatsheet.txt`
+- `files/ninjabackup`
+- `files/ninjarestore`
+- `config/termtheme/`
+- `config/bashrc-snippet.sh`
+- `dependencies/commands.txt`
+- `dependencies/MANIFEST.txt`
+
+## Ninja commands
+
+    ninja
+    ninjaedit
+    ninjatheme
+    bashrl
+    ninjabackup
+
+## Important Bash rule
+
+`config/bashrc-snippet.sh` is NOT a complete `.bashrc`.
+
+It contains only Ninja-specific additions.
+
+On another Linux system:
+
+1. Back up the existing `~/.bashrc`.
+2. Inspect the Ninja snippet.
+3. Add the Ninja entries to the existing `.bashrc`.
+4. Run:
+
+       bash -n ~/.bashrc
+
+5. Reload:
+
+       source ~/.bashrc
+
+Never blindly replace a destination `.bashrc`.
+
+## Theme
+
+Theme selector:
+
+    ~/termtheme
+
+Persistent configuration:
+
+    ~/.config/termtheme/
+
+Themes include:
+
+    Classic
+    Hacker
+    Ice
+    Fire
+    Purple
+    Gold
+    Orange
+    Custom RGB
+    Reset
+
+## Optional libraries
+
+The backup script contains:
+
+    OPTIONAL_LIBRARIES=(
+        "Ninja local libraries|$HOME/.local/lib/ninja"
+        "Ninja modules|$HOME/.local/share/ninja-modules"
+    )
+
+Additional libraries can be added there.
+
+The backup checks each registered library and asks whether
+it should be included.
+
+It also asks whether an arbitrary additional file or directory
+should be included.
+
+## Backup output
+
+Backups are stored under:
+
+    ~/ninja-backups/
+
+Each backup has:
+
+    ninja-backup-YYYYMMDD-HHMMSS.tar.gz
+    ninja-backup-YYYYMMDD-HHMMSS.tar.gz.sha256
+
+## Portability
+
+The archive is Ninja-only.
+
+It does not contain:
+
+- the entire home directory
+- `.bash_history`
+- `.cache`
+- the entire WSL distribution
+- unrelated projects
+
+Use `$HOME`, not a hard-coded home directory, on destination systems.
+
+## AI migration rule
+
+An AI receiving this archive should read this README first.
+
+It should:
+
+    identify $HOME
+    inspect ~/.bashrc
+    back up ~/.bashrc
+    install Ninja files
+    integrate the Bash snippet
+    test Bash syntax
+    test ninja
+    test ninjatheme
+    test bashrl
+    test ninjabackup
+    test ninjarestore
+
+============================================================
+END README
+============================================================
+README
+
+cp "$STAGE/README.md" "$STAGE/docs/README.md"
+
+printf '  [OK] README.md\n'
+printf '%s\n' 'README.md' >> "$MANIFEST"
+
+printf '\n'
+
+printf '%s\n' '[6] OPTIONAL LIBRARIES'
+printf '%s\n' '----------------------'
+
+AVAILABLE=()
+
+for entry in "${OPTIONAL_LIBRARIES[@]}"; do
+    label="${entry%%|*}"
+    path="${entry#*|}"
+
+    if [[ -e "$path" ]]; then
+        AVAILABLE+=("$entry")
+    fi
+done
+
+if (( ${#AVAILABLE[@]} == 0 )); then
+    printf 'No registered optional libraries found.\n'
+else
+    printf 'Registered optional libraries found:\n\n'
+
+    for i in "${!AVAILABLE[@]}"; do
+        label="${AVAILABLE[$i]%%|*}"
+        path="${AVAILABLE[$i]#*|}"
+
+        printf '  %d) %s\n' "$((i+1))" "$label"
+        printf '     %s\n' "$path"
+    done
+
+    printf '\n'
+
+    for i in "${!AVAILABLE[@]}"; do
+        label="${AVAILABLE[$i]%%|*}"
+        path="${AVAILABLE[$i]#*|}"
+        safe_name="$(printf '%s' "$label" | tr ' /' '__' | tr -cd '[:alnum:]_.-')"
+
+        read -r -p "Include '$label'? [y/N]: " answer
+
+        case "${answer,,}" in
+            y|yes)
+                mkdir -p "$STAGE/optional-libraries/$safe_name"
+
+                if [[ -d "$path" ]]; then
+                    cp -a "$path"/. "$STAGE/optional-libraries/$safe_name/"
+                else
+                    cp -a "$path" "$STAGE/optional-libraries/$safe_name/"
+                fi
+
+                printf '  [OK] Included: %s\n' "$label"
+                printf '  optional-libraries/%s\n' "$safe_name" >> "$MANIFEST"
+                ;;
+            *)
+                printf '  [--] Skipped: %s\n' "$label"
+                ;;
+        esac
+    done
+fi
+
+printf '\n'
+
+read -r -p \
+    'Do you want to include another file or directory? [y/N]: ' \
+    add_extra
+
+while [[ "${add_extra,,}" == "y" || "${add_extra,,}" == "yes" ]]; do
+
+    read -r -p 'Enter path: ' extra_path
+
+    if [[ ! -e "$extra_path" ]]; then
+        printf '  [!!] Path does not exist.\n'
+    else
+        default_name="$(basename "$extra_path")"
+
+        read -r -p \
+            "Backup name [$default_name]: " \
+            extra_name
+
+        extra_name="${extra_name:-$default_name}"
+        safe_name="$(printf '%s' "$extra_name" | tr ' /' '__' | tr -cd '[:alnum:]_.-')"
+
+        if [[ -d "$extra_path" ]]; then
+            mkdir -p "$STAGE/optional-libraries/$safe_name"
+            cp -a "$extra_path"/. "$STAGE/optional-libraries/$safe_name/"
+        else
+            cp -a "$extra_path" "$STAGE/optional-libraries/$safe_name"
+        fi
+
+        printf '  [OK] Added: %s\n' "$extra_path"
+        printf '  optional-libraries/%s\n' "$safe_name" >> "$MANIFEST"
+    fi
+
+    printf '\n'
+    read -r -p \
+        'Add another file or directory? [y/N]: ' \
+        add_extra
+done
+
+printf '\n'
+printf '%s\n' 'CREATING ARCHIVE'
+printf '%s\n' '----------------'
+
+if ! tar -czf "$BACKUP_FILE" -C "$WORK_ROOT" ninja-portable; then
+    printf '%s\n' 'ERROR: Backup archive creation failed.'
+    exit 1
+fi
+
+if command -v sha256sum >/dev/null 2>&1; then
+    sha256sum "$BACKUP_FILE" > "$SHA_FILE"
+fi
+
+SIZE="$(du -h "$BACKUP_FILE" | awk '{print $1}')"
+
+printf '\n'
+printf '%s\n' '============================================================'
+printf '%s\n' '                 NINJA BACKUP COMPLETE'
+printf '%s\n' '============================================================'
+printf '\n'
+
+printf 'BACKUP FILE\n'
+printf '%s\n' '-----------'
+printf '  %s\n' "$BACKUP_FILE"
+printf '  Size: %s\n' "$SIZE"
+
+if [[ -f "$SHA_FILE" ]]; then
+    printf '\nSHA256\n'
+    printf '%s\n' '------'
+    printf '  %s\n' "$(awk '{print $1}' "$SHA_FILE")"
+fi
+
+printf '\nCONTENTS\n'
+printf '%s\n' '--------'
+tar -tzf "$BACKUP_FILE" | sed 's#^#  #'
+
+printf '\n'
+printf 'MANIFEST IS INSIDE THE ARCHIVE:\n'
+printf '  ninja-portable/dependencies/MANIFEST.txt\n'
+
+# ============================================================
+# REAL WINDOWS DESKTOP DETECTION
+# ============================================================
+
+printf '\nEXPORT\n'
+printf '%s\n' '------'
+
+WIN_DESKTOP=""
+
+if command -v powershell.exe >/dev/null 2>&1 &&
+   command -v wslpath >/dev/null 2>&1; then
+
+    WIN_DESKTOP_RAW="$(
+        powershell.exe -NoProfile -Command \
+        "[Environment]::GetFolderPath([Environment+SpecialFolder]::Desktop)" \
+        2>/dev/null |
+        tr -d '\r' |
+        head -n 1
+    )"
+
+    if [[ -n "$WIN_DESKTOP_RAW" ]]; then
+        WIN_DESKTOP="$(wslpath -u "$WIN_DESKTOP_RAW" 2>/dev/null || true)"
+    fi
+fi
+
+if [[ -n "$WIN_DESKTOP" && -d "$WIN_DESKTOP" ]]; then
+
+    printf 'Detected Desktop:\n'
+    printf '  %s\n' "$WIN_DESKTOP"
+    printf '\n'
+
+    read -r -p \
+        'Copy backup + SHA256 to Desktop? [Y/n]: ' \
+        export_choice
+
+    export_choice="${export_choice:-Y}"
+
+    if [[ "${export_choice,,}" == "y" || "${export_choice,,}" == "yes" ]]; then
+
+        if cp "$BACKUP_FILE" "$WIN_DESKTOP/" &&
+           [[ -f "$WIN_DESKTOP/$(basename "$BACKUP_FILE")" ]]; then
+
+            printf '\n  [OK] Backup exported to:\n'
+            printf '  %s/%s\n' "$WIN_DESKTOP" "$(basename "$BACKUP_FILE")"
+
+            if [[ -f "$SHA_FILE" ]]; then
+                if cp "$SHA_FILE" "$WIN_DESKTOP/"; then
+                    printf '  [OK] SHA256 exported.\n'
+                else
+                    printf '  [!!] SHA256 export failed.\n'
+                fi
+            fi
+
+        else
+
+            printf '\n'
+            printf '  [!!] Desktop export FAILED.\n'
+            printf '  Backup is still safe at:\n'
+            printf '  %s\n' "$BACKUP_FILE"
+
+        fi
+
+    else
+        printf 'Desktop export skipped.\n'
+    fi
+
+else
+
+    printf 'Could not automatically detect a writable Windows Desktop.\n'
+    printf 'The backup is still safe at:\n'
+    printf '  %s\n' "$BACKUP_FILE"
+
+fi
+
+printf '\n'
+printf 'MANUAL EXPORT\n'
+printf '%s\n' '-------------'
+printf '\n'
+printf 'Copy from WSL to Windows manually with:\n'
+printf '  cp "%s" /mnt/c/Users/<WindowsUser>/Desktop/\n' "$BACKUP_FILE"
+
+printf '\n'
+printf 'Or transfer to another Linux system with:\n'
+printf '  scp "%s" user@host:/path/\n' "$BACKUP_FILE"
+
+printf '\n'
+printf 'Restore/extract with:\n'
+printf '  tar -xzf "%s"\n' "$(basename "$BACKUP_FILE")"
+
+printf '\n'
+printf '%s\n' '============================================================'
+printf '%s\n' '              NINJA BACKUP FINISHED'
+printf '%s\n' '============================================================'

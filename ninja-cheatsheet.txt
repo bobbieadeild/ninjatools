@@ -1,0 +1,2017 @@
+================================================================================
+                           NINJA(1) SUPERUSER CHEAT SHEET
+================================================================================
+
+NAME
+    ninja - condensed Linux+, sysadmin, security and DevOps command reference
+
+USAGE
+    ninja
+    ninjaedit
+    ninjatheme
+    ninjareadme
+    ninjabackup
+    ninjarestore
+    
+LESS NAVIGATION
+    q                   Quit
+    /pattern            Search
+    n                   Next search result
+    N                   Previous result
+    g                   Top
+    G                   Bottom
+    h                   Help
+    Ctrl+f              Page forward
+    Ctrl+b              Page backward
+    Space               Page forward
+    b                   Page backward
+
+LEGEND
+    [!]  Destructive / dangerous
+    [R]  Read / inspect
+    [C]  Configuration
+    [A]  Administration
+    [N]  Networking
+    [S]  Security
+    [D]  Development / DevOps
+
+
+================================================================================
+                           NINJA QUICK INDEX
+================================================================================
+
+CHAPTERS
+--------
+    00. PERSONAL SHELL COMMANDS
+    01. SHELL BASICS
+    02. SHELL HISTORY / SHORTCUTS
+    03. REDIRECTION / PIPES
+    04. TEXT PROCESSING
+    05. REGEX
+    06. SYSTEM INFORMATION
+    07. SYSTEMD / SERVICES
+    08. KERNEL MODULES
+    09. BOOT / INITRAMFS
+    10. DISKS / FILESYSTEMS / MOUNTS
+    11. PARTITIONING
+    12. RAID / MDADM
+    13. LVM
+    14. USERS / GROUPS
+    15. LOGIN / SESSION
+    16. PERMISSIONS / ACL
+    17. PROCESS MANAGEMENT
+    18. SCHEDULING
+    19. PACKAGE MANAGEMENT
+    20. OTHER PACKAGE / APP SYSTEMS
+    21. FILE / ARCHIVE COMPRESSION
+    22. BACKUP / COPYING
+    23. NETWORK BASICS
+    24. NETWORK CONFIGURATION
+    25. NETWORK ADVANCED
+    26. FIREWALL
+    27. STORAGE PERFORMANCE
+    28. NFS / SMB / SAMBA
+    29. LOGGING / TROUBLESHOOTING
+    30. POLKIT / PAM / AUTHENTICATION
+    31. PASSWORD POLICY
+    32. SSH
+    33. SSH / TLS EXAMPLE
+    34. SELINUX
+    35. ACCESS CONTROL / SUDO
+    36. FILE INTEGRITY / SECURITY
+    37. CRYPTOGRAPHY
+    38. DISK ENCRYPTION
+    39. CONTAINERS
+    40. QEMU / KVM / LIBVIRT
+    41. WEB SERVERS
+    42. CLOUD / CONFIGURATION MANAGEMENT
+    43. CI/CD
+    44. BASH SCRIPTING
+    45. BASH COMMAND GROUPS
+    46. PYTHON
+    47. GIT
+    48. SNMP / OBSERVABILITY
+    49. NETWORK TROUBLESHOOTING
+    10. tcpdump
+    11. ethtool
+    12. lsof -i
+    50. STORAGE TROUBLESHOOTING
+    10. /proc/mdstat
+    51. PROCESS TROUBLESHOOTING
+    52. BOOT TROUBLESHOOTING
+    53. USEFUL SECURITY / ADMIN COMMANDS
+    54. EXAMPLE ADMIN TASKS
+    55. COMMAND CONCEPTS TO MASTER
+    56. IMPORTANT FILES TO KNOW
+    57. SPECIAL DEVICES
+    58. LINUX+ MUSCLE MEMORY
+    59. DANGER ZONE
+    60. QUICK COMMAND CHAINING
+    61. LINUX+ CORE DOCTRINE
+
+JUMP / SEARCH IN LESS
+--------------------
+    /01.               Find chapter 01
+    /15.               Find chapter 15
+    /REGEX             Search for REGEX
+    n                  Next match
+    N                  Previous match
+    g                  Top
+    G                  Bottom
+    q                  Quit
+
+
+================================================================================
+00. PERSONAL SHELL COMMANDS
+================================================================================
+
+bashrc ='nano ~/.bashrc'          Edit Bash configuration
+bashrl ='source ~/.bashrc'        Reload Bash configuration
+
+
+================================================================================
+01. SHELL BASICS
+================================================================================
+
+pwd                             Show current directory
+ls                              List directory
+ls -la                          Long listing, hidden files
+ls -lah                         Long listing, human-readable
+cd /path                        Change directory
+cd ~                            Go home
+cd -                            Previous directory
+tree                            Directory tree
+mkdir dir                       Create directory
+mkdir -p a/b/c                  Create nested directories
+rmdir dir                       Remove empty directory
+cp file dest                    Copy
+cp -r dir dest                  Copy directory
+mv old new                      Move / rename
+rm file                         Remove [!]
+rm -rf dir                      Recursive removal [!]
+touch file                      Create empty file
+file file                       Identify file type
+stat file                       Detailed metadata
+ln -s target link               Create symbolic link
+find /path -name '*.log'        Find files
+find . -type f                  Find regular files
+locate filename                 Fast filename search
+diff file1 file2                Compare files
+sdiff file1 file2               Side-by-side comparison
+
+cat file                        Display file
+cat <<EOF                       Here-document
+cat > file <<EOF                Write multiline input to file
+Ctrl-D                          End stdin / EOF
+tee file                        Write stdin to file and screen
+tee -a file                     Append instead of overwrite
+
+head file                       First lines
+head -n 20 file                 First 20 lines
+tail file                       Last lines
+tail -f file                    Follow changing file
+more file                       Page through file
+less file                       Interactive pager
+
+echo "text"                     Print text
+printf '%s\n' "text"            Precise formatted output
+echo $?                         Previous command exit status
+
+
+================================================================================
+02. SHELL HISTORY / SHORTCUTS
+================================================================================
+
+history                         Show command history
+!!                              Run previous command
+sudo !!                         Run previous command with sudo
+!123                            Run history entry 123
+!sys                            Run most recent command beginning with sys
+Ctrl+C                          Interrupt foreground command
+Ctrl+D                          EOF / exit shell when no input
+Ctrl+Z                          Suspend foreground job
+bg                              Resume suspended job in background
+fg                              Bring job to foreground
+jobs                            Show shell jobs
+command                         Bypass aliases/functions
+type command                    Show how Bash resolves a command
+which command                   Locate executable
+alias                           List aliases
+alias ll='ls -lah'              Create alias
+unalias ll                      Remove alias
+source ~/.bashrc                Reload Bash configuration
+
+
+================================================================================
+03. REDIRECTION / PIPES
+================================================================================
+
+command > file                  Redirect stdout, overwrite
+command >> file                 Redirect stdout, append
+command 2> file                 Redirect stderr
+command 2>> file                Append stderr
+command < file                  Read stdin from file
+command | command               Pipe stdout to next command
+command 2>&1                    Send stderr to stdout
+command > file 2>&1             Save stdout + stderr
+command &> file                 Save stdout + stderr
+command1 && command2            Run second only if first succeeds
+command1 || command2            Run second if first fails
+
+<                               stdin redirection
+>                               stdout overwrite
+>>                              stdout append
+2>                              stderr
+<<<                             Here-string
+<<EOF                           Here-document
+\>                              Escaped literal redirection
+\>>                             Escaped append operator
+
+/dev/null                       Discard output
+/dev/zero                       Endless zero bytes
+/dev/urandom                    Kernel random bytes
+
+
+================================================================================
+04. TEXT PROCESSING
+================================================================================
+
+grep "text" file                Search text
+grep -i "fail" file             Case-insensitive search
+grep -r "text" .                Recursive search
+grep -n "text" file             Include line numbers
+grep -v "text" file             Invert match
+grep -E 'regex' file            Extended regex
+
+awk '{print $1}' file           Print field 1
+awk -F: '{print $1}' file       Colon field separator
+awk '/error/ {print $1,$5}' file
+                                Print fields on matching lines
+
+cut -d ':' -f2 file             Field 2 using :
+cut -d: -f1 /etc/passwd         First passwd field
+
+sed 's/old/new/' file           Replace first match per line
+sed 's/old/new/g' file          Replace all matches
+sed -n '1,20p' file             Print lines 1-20
+sed -i 's/old/new/g' file       Edit file in place [!]
+
+tr 'a-z' 'A-Z'                  Convert lowercase to uppercase
+tr -d '\r' file                 Remove CR characters
+
+sort file                        Sort lines
+sort -n file                     Numeric sort
+sort -r file                     Reverse sort
+uniq file                        Remove adjacent duplicates
+sort file | uniq                 Sort then deduplicate
+uniq -c file                     Count adjacent duplicates
+wc file                          Lines, words, bytes
+wc -l file                       Line count
+wc -w file                       Word count
+wc -c file                       Byte count
+
+xargs command                   Build command arguments from stdin
+printf '%s\n' *.log | xargs grep error
+
+IFS                             Bash input field splitting
+OFS                             awk output field separator
+
+tee file                        Show and save output
+command | tee output.txt        Save pipeline output
+
+
+================================================================================
+05. REGEX
+================================================================================
+
+^                               Start of line
+$                               End of line
+.                               Any single character
+*                               Zero or more
++                               One or more
+?                               Zero or one
+{n}                             Exactly n
+{n,m}                           Between n and m
+[...]                           Character class
+[^...]                          Negated character class
+(...)                           Capture group
+|                               OR
+\                               Escape special character
+[[:space:]]                     Whitespace
+[[:digit:]]                     Digit
+[[:alpha:]]                     Letter
+[[:alnum:]]                     Letter or digit
+
+^root:                          Begins with root:
+:error:                         Contains :error:
+^[0-9]+$                        Digits only
+^[[:space:]]*$                 Blank / whitespace-only line
+(error|fail|denied)             Match any listed word
+
+grep -E '^(root|sshd):' /etc/passwd
+grep -E 'fail|error|denied' /var/log/auth.log
+
+BASH REGEX
+[[ "$var" =~ ^[0-9]+$ ]]
+[[ "$var" =~ ^[a-zA-Z0-9._-]+$ ]]
+
+Remember:
+    grep        Search text
+    sed         Transform text
+    awk         Process fields / records
+    regex       Pattern matching language
+
+
+================================================================================
+06. SYSTEM INFORMATION
+================================================================================
+
+uname -a                        Kernel / system information
+hostnamectl                    Hostname and OS information
+timedatectl                    Time / timezone information
+uptime                          Uptime and load
+lscpu                           CPU information
+lsmem                           Memory information
+lshw                            Hardware inventory
+lspci                           PCI devices
+lsusb                           USB devices
+dmidecode                       DMI / firmware hardware data
+dmesg                           Kernel messages
+dmesg -w                        Follow kernel messages
+lsof                            Open files / sockets
+lsblk                           Block devices
+blkid                           Filesystem UUID/type
+
+/proc/                          Kernel / process pseudo-filesystem
+/proc/cpuinfo                   CPU information
+/proc/meminfo                   Memory information
+/proc/mounts                    Current mounts
+/proc/net/                      Network information
+/proc/mdstat                    Linux software RAID status
+/proc/net/bonding/bond0         Bond status
+
+nvtop                           GPU monitoring
+lm_sensors                     Sensor data
+smartctl                        Disk health / SMART
+
+
+================================================================================
+07. SYSTEMD / SERVICES
+================================================================================
+
+systemctl status SERVICE        Service status
+systemctl start SERVICE         Start service
+systemctl stop SERVICE          Stop service
+systemctl restart SERVICE      Restart service
+systemctl reload SERVICE        Reload configuration
+systemctl enable SERVICE        Start at boot
+systemctl disable SERVICE       Do not start at boot
+systemctl mask SERVICE          Prevent starting
+systemctl unmask SERVICE        Remove mask
+systemctl edit SERVICE          Override configuration
+systemctl daemon-reload         Reload unit files
+systemctl list-units            Loaded units
+systemctl list-unit-files       Installed unit files
+systemctl is-active SERVICE     Active?
+systemctl is-enabled SERVICE    Enabled?
+
+journalctl                     Systemd logs
+journalctl -u SERVICE          Service logs
+journalctl -b                  Current boot
+journalctl -f                  Follow logs
+journalctl -p err              Errors
+
+systemd-analyze                Boot timing
+systemd-analyze blame          Slow services
+systemd-resolved               DNS resolver service
+
+start / stop / restart / enable / disable / mask / unmask / status / reload
+
+
+================================================================================
+08. KERNEL MODULES
+================================================================================
+
+lsmod                           Loaded modules
+modinfo MODULE                  Module information
+insmod MODULE.ko                Insert module
+rmmod MODULE                    Remove module
+modprobe MODULE                 Load module + dependencies
+modprobe -r MODULE              Remove module
+depmod -a                       Rebuild module dependency database
+
+/etc/modprobe.d/                Module configuration
+install cramfs /bin/false       Prevent module loading
+
+
+================================================================================
+09. BOOT / INITRAMFS
+================================================================================
+
+dracut                           Build initramfs
+mkinitrd                         Build initramfs
+update-grub                      Debian/Ubuntu GRUB config
+grub2-mkconfig -o /boot/grub2/grub.cfg
+                                 RHEL/Fedora GRUB config
+
+GRUB2                            Bootloader
+kernel                           Linux kernel
+initrd / initramfs               Early userspace filesystem
+
+
+================================================================================
+10. DISKS / FILESYSTEMS / MOUNTS
+================================================================================
+
+df -h                           Filesystem free space
+du -sh DIR                      Directory size
+du -sh *                        Size of items
+mount                           Show / perform mounts
+mount DEVICE MOUNTPOINT         Mount filesystem
+umount MOUNTPOINT               Unmount
+findmnt                         Show filesystem mount tree
+
+/etc/fstab                      Persistent mounts
+/etc/mtab                       Mounted filesystems reference
+
+mount -o remount,rw /           Remount read/write
+mount -o remount,ro /           Remount read-only
+
+noatime                         Do not update access times
+nodiratime                      Do not update directory access times
+ro                              Read-only
+rw                              Read/write
+nodev                           Do not interpret device files
+noexec                          Do not execute binaries
+nosuid                          Ignore SUID/SGID bits
+
+autofs                          Automount service
+
+ext4                            Common Linux filesystem
+xfs                             XFS filesystem
+btrfs                           Copy-on-write filesystem
+tmpfs                           RAM-backed filesystem
+NFS                             Network filesystem
+SMB / Samba                     Windows-compatible file sharing
+
+inode                           Filesystem metadata structure
+
+mkfs.ext4 /dev/sdX              Create ext4 [!]
+fsck /dev/sdX                   Check filesystem [!]
+resize2fs DEVICE                Resize ext2/3/4
+xfs_repair DEVICE               Repair XFS [!]
+xfs_growfs MOUNTPOINT           Grow mounted XFS
+
+
+================================================================================
+11. PARTITIONING
+================================================================================
+
+fdisk /dev/sdX                  MBR/GPT partitioning
+gdisk /dev/sdX                  GPT partitioning
+parted                          Partition editor
+growpart DEVICE PARTITION       Grow partition
+
+lsblk                           Inspect before touching disks
+blkid                           Identify UUID/filesystem
+
+ALWAYS verify device names before destructive disk commands.
+
+
+================================================================================
+12. RAID / MDADM
+================================================================================
+
+mdadm --detail /dev/md0         RAID detail
+cat /proc/mdstat                RAID status
+
+[!] sudo mdadm --create --verbose /dev/md0 \
+    --level=1 --raid-devices=2 /dev/sdb /dev/sdc
+
+RAID 1                           Mirroring
+RAID 0                           Striping
+RAID 5                           Striping + parity
+RAID 6                           Dual parity
+RAID 10                          Mirroring + striping
+
+
+================================================================================
+13. LVM
+================================================================================
+
+PV = Physical Volume
+VG = Volume Group
+LV = Logical Volume
+
+pvcreate DEVICE                  Create PV [!]
+pvdisplay                       PV details
+pvs                             PV summary
+pvscan                          Scan PVs
+pvmove SOURCE DEST              Move extents
+pvresize DEVICE                 Resize PV
+pvremove DEVICE                 Remove PV [!]
+
+vgscan                          Scan VGs
+vgcreate VG PV                  Create VG
+vgdisplay VG                    VG details
+vgs                             VG summary
+vgchange                        Change VG state
+vgextend VG PV                  Add PV to VG
+vgexport VG                     Export VG
+vgimport VG                     Import VG
+vgremove VG                     Remove VG [!]
+
+lvcreate -L 10G -n data VG      Create LV
+lvdisplay                       LV details
+lvs                             LV summary
+lvchange                        Change LV
+lvresize                        Resize LV
+lvextend -r -L +10G LV          Extend LV + filesystem
+lvremove LV                     Remove LV [!]
+
+
+================================================================================
+14. USERS / GROUPS
+================================================================================
+
+id                              UID/GID information
+groups                          Group membership
+getent passwd                   Query passwd database
+whoami                          Current user
+echo $?                         Previous exit status
+
+useradd                          Create user
+adduser                          Interactive user creation
+useradd -D                       Default useradd settings
+useradd -c "Jane Doe - Engineer" \
+        -m -s /bin/bash -e 2028-12-31 -u 1050 jane
+
+adduser jane                     Create user interactively
+usermod                          Modify user
+userdel                          Delete user [!]
+deluser                          Delete user [!]
+passwd                           Change password
+passwd -u USER                   Unlock password
+chage -M 90 USER                 Maximum password age
+chsh                             Change login shell
+
+groupadd GROUP                   Create group
+groupmod                         Modify group
+groupdel GROUP                   Delete group [!]
+
+/etc/passwd                      User database
+/etc/group                       Group database
+/etc/shadow                      Password hashes / aging
+/etc/skel                        New-user template
+/etc/login.defs                  Login defaults
+/etc/profile                     Global shell profile
+
+/sbin/nologin                    Non-interactive account shell
+/bin/rbash                       Restricted Bash
+
+UID                              User ID
+GID                              Group ID
+EUID                             Effective user ID
+EGID                             Effective group ID
+SUID                             Set-user-ID identity
+SGID                             Set-group-ID identity
+
+
+================================================================================
+15. LOGIN / SESSION
+================================================================================
+
+last                             Login history
+lastlog                          Last login per user
+w                                Logged-in users + activity
+who                              Logged-in users
+id                               Identity information
+
+/etc/issue                       Local pre-login banner
+/etc/issue.net                   Network pre-login banner
+/etc/motd                        Message of the day
+
+
+================================================================================
+16. PERMISSIONS / ACL
+================================================================================
+
+ls -l                            Show permissions
+chmod 755 file                   rwx r-x r-x
+chmod u+x file                   Add execute for owner
+chmod g-w file                   Remove write from group
+chown user file                  Change owner
+chown user:group file            Change owner + group
+chgrp group file                 Change group
+
+setuid                           Execute with file owner's identity
+setgid                           Execute with group identity
+sticky bit                       Restrict directory deletion
+umask                            Default permission mask
+
+setfacl -m u:USER:rwx file       Add ACL entry
+getfacl file                     Show ACLs
+
+chattr +i file                   Immutable attribute [!]
+chattr -i file                   Remove immutable
+lsattr file                      Extended attributes
+
+
+================================================================================
+17. PROCESS MANAGEMENT
+================================================================================
+
+ps                               Current processes
+ps aux                           All processes
+ps aux --forest                  Process tree view
+pstree                           Process tree
+top                              Interactive process monitor
+htop                             Interactive process monitor
+atop                             Advanced monitoring
+
+PID                              Process ID
+PPID                             Parent process ID
+
+nice -n 10 command               Start with adjusted priority
+renice 10 -p PID                 Change priority
+
+kill PID                         Default signal / TERM
+kill -HUP PID                    SIGHUP (1)
+kill -TERM PID                  SIGTERM (15)
+kill -KILL PID                  SIGKILL (9) [!]
+
+killall NAME                     Kill by process name [!]
+pkill NAME                       Kill by pattern [!]
+
+strace -p PID                    Trace system calls
+lsof -p PID                     Open files for process
+pidstat                         Per-process statistics
+mpstat                          CPU statistics
+iotop                            Disk I/O monitor
+dstat                            System resource statistics
+
+bg                               Background suspended job
+fg                               Foreground job
+jobs                             Shell jobs
+Ctrl+Z                           Suspend process
+command &                        Run in background
+nohup command &                  Survive terminal logout
+exec command                     Replace current shell
+
+
+================================================================================
+18. SCHEDULING
+================================================================================
+
+crontab -e                       Edit user cron
+crontab -l                       List cron jobs
+/etc/anacrontab                  Anacron configuration
+anacron                          Run periodic jobs
+at                               Schedule one-time command
+
+Cron fields:
+    minute hour day month weekday
+
+
+================================================================================
+19. PACKAGE MANAGEMENT
+================================================================================
+
+APT / Debian / Ubuntu
+
+apt update                       Update package metadata
+apt install PKG                  Install
+apt remove PKG                   Remove
+apt purge PKG                    Remove + config
+apt upgrade                      Upgrade
+apt search TERM                  Search
+apt show PKG                     Show package info
+apt-mark hold PKG                Hold package
+apt-mark showhold                Show held packages
+apt-mark unhold PKG              Release hold
+
+dpkg -i package.deb              Install local package
+dpkg -l                           List packages
+dpkg --set-selections             Package selection control
+
+YUM / DNF / RHEL / Fedora
+
+dnf install PKG                  Install
+dnf remove PKG                   Remove
+dnf update                       Update
+dnf search TERM                  Search
+dnf info PKG                     Package info
+dnf versionlock PKG              Hold package
+
+yum install PKG                  Legacy-compatible syntax
+yum-config-manager               Repository configuration
+
+Zypper / SUSE
+
+zypper install PKG               Install
+zypper remove PKG                Remove
+zypper update                    Update
+
+
+================================================================================
+20. OTHER PACKAGE / APP SYSTEMS
+================================================================================
+
+pip install PACKAGE              Python package
+pip freeze                       Installed Python packages
+cargo install PACKAGE            Rust package
+npm install PACKAGE              Node package
+
+snap install PACKAGE             Snap package
+flatpak install APP              Flatpak package
+AppImage                         Portable application format
+
+update-alternatives              Debian alternative selection
+
+
+================================================================================
+21. FILE / ARCHIVE COMPRESSION
+================================================================================
+
+gzip file                        Compress
+gunzip file.gz                   Decompress
+bzip2 file                       Compress
+bunzip2 file.bz2                 Decompress
+xz file                          Compress
+unxz file.xz                     Decompress
+zip archive.zip files            ZIP archive
+unzip archive.zip                Extract ZIP
+7z a archive.7z files            7-Zip archive
+
+tar -cvf archive.tar DIR         Create tar
+tar -xvf archive.tar             Extract tar
+tar -czvf archive.tar.gz DIR    tar + gzip
+tar -cjvf archive.tar.bz2 DIR   tar + bzip2
+tar -cJvf archive.tar.xz DIR    tar + xz
+
+zcat file.gz                     Read compressed text
+zgrep "error" file.gz            Search compressed text
+zless file.gz                    Page compressed text
+
+cpio                            Archive utility
+
+
+================================================================================
+22. BACKUP / COPYING
+================================================================================
+
+cp -a SOURCE DEST                Preserve attributes
+scp file user@host:/path         Secure copy
+rsync -av SOURCE DEST            Synchronize
+rsync -av --delete SOURCE DEST   Mirror [!]
+
+dd if=INPUT of=OUTPUT bs=4M status=progress
+                                 Raw block copy [!]
+
+ddrescue                         Recover failing disks
+
+[!] dd can destroy an entire disk if the device is wrong.
+
+shred -vu -n 100 passwd          Overwrite + unlink file [!]
+badblocks -w DEVICE              Destructive disk test [!]
+
+
+================================================================================
+23. NETWORK BASICS
+================================================================================
+
+ip addr                          Interface addresses
+ip link                          Interfaces
+ip route                         Routing table
+ip neigh                         ARP/neighbor cache
+ip -s link                       Interface statistics
+
+ping HOST                        IPv4 connectivity
+ping6 HOST                       IPv6 connectivity
+arping IP                        ARP-level test
+tracepath HOST                   Path MTU / route
+traceroute HOST                  Route tracing
+mtr HOST                         Interactive path test
+
+ss -tulpn                        Listening TCP/UDP sockets
+ss -ant                          TCP connections
+lsof -i                          Network sockets
+nc -lvnp PORT                    Netcat listener
+nc HOST PORT                     Netcat client
+
+tcpdump -i eth0                  Packet capture
+tcpdump -nn                     Disable DNS/service lookup
+wireshark                        GUI packet analyzer
+tshark                           CLI Wireshark
+
+nmap HOST                        Port scan
+nmap -sV HOST                    Service/version detection
+
+iperf3 -s                        Performance test server
+iperf3 -c HOST                   Performance test client
+ping -i 0.2 HOST                 Ping every 0.2 seconds
+
+ethtool eth0                     NIC information
+hostname                         Show hostname
+hostnamectl                     Manage hostname
+
+
+================================================================================
+24. NETWORK CONFIGURATION
+================================================================================
+
+nmcli                             NetworkManager CLI
+nmcli connection show             Show connections
+nmcli device status               Device state
+nmcli connection up NAME          Activate connection
+nmcli connection down NAME        Deactivate connection
+nm-connection-editor              GUI NetworkManager editor
+
+/etc/NetworkManager/system-connections/
+                                    Persistent NetworkManager profiles
+
+netplan apply                     Apply Ubuntu netplan
+netplan try                       Test configuration safely
+netplan status                    Netplan status
+
+/etc/netplan/*.yaml               Ubuntu network config
+/etc/hosts                        Local hostname mapping
+/etc/resolv.conf                  Resolver configuration
+/etc/nsswitch.conf                Name-service resolution order
+
+resolvectl                        DNS resolver control
+sysctl                            Kernel parameter control
+
+
+================================================================================
+25. NETWORK ADVANCED
+================================================================================
+
+/proc/net/bonding/bond0           Bond information
+bridge                            Linux bridge utilities
+host                              Host networking mode
+none                              No container networking
+macvlan                           MAC-based virtual interface
+ipvlan                            IP-based virtual interface
+overlay                           Overlay networking
+
+Bonding                           Combine interfaces
+ARP                               Address Resolution Protocol
+Netfilter                         Linux packet filtering framework
+
+sysctl -w net.ipv4.ip_forward=1   Enable IPv4 forwarding
+
+ip route                          Routing
+ip rule                           Policy routing
+ip link add                       Create virtual links
+
+
+================================================================================
+26. FIREWALL
+================================================================================
+
+firewall-cmd --state              firewalld status
+firewall-cmd --get-active-zones   Active zones
+firewall-cmd --list-all           Zone configuration
+firewall-cmd --add-service=http
+firewall-cmd --add-port=8080/tcp
+firewall-cmd --permanent --add-port=8080/tcp
+firewall-cmd --reload
+
+firewalld concepts:
+    Zones
+    Services
+    Ports
+    Rich Rules
+
+ufw status                        Ubuntu firewall status
+ufw allow 22/tcp
+ufw deny 23/tcp
+ufw enable
+
+nft list ruleset                  nftables rules
+iptables -L -n -v                 Legacy firewall inspection
+ipset list                        IP sets
+
+
+================================================================================
+27. STORAGE PERFORMANCE
+================================================================================
+
+fio --name=test --filename=/tmp/testfile
+                                 Flexible I/O tester
+
+iotop                             Disk I/O by process
+dstat                             System resource statistics
+smartctl -a /dev/sdX              SMART health
+
+
+================================================================================
+28. NFS / SMB / SAMBA
+================================================================================
+
+NFS                               Linux network filesystem
+SMB                               Windows-compatible file sharing
+Samba                             SMB implementation
+
+mount -t nfs SERVER:/share /mnt
+mount -t cifs //SERVER/share /mnt
+
+/etc/fstab                        Persistent NFS/SMB mounts
+
+
+================================================================================
+29. LOGGING / TROUBLESHOOTING
+================================================================================
+
+/var/log/                         Traditional log directory
+journalctl                        systemd journal
+rsyslog                           Traditional logging service
+logrotate                         Log rotation
+
+journalctl -xe                    Recent errors / explanations
+journalctl -b                     Current boot
+journalctl -u ssh                 SSH logs
+
+dmesg                             Kernel ring buffer
+dmesg -T                          Human-readable timestamps
+
+auditd                            Linux audit daemon
+audit.rules                       Audit rule configuration
+ausearch -k KEY                   Search audit records
+ausearch -k passwd_changes       Search password-change events
+
+Example audit rule:
+    -w /etc/shadow -p wa -k passwd_changes
+
+
+================================================================================
+30. POLKIT / PAM / AUTHENTICATION
+================================================================================
+
+Polkit                            Desktop/service authorization
+PAM                               Pluggable Authentication Modules
+SSSD                              Identity/authentication integration
+Winbind                           Windows domain integration
+realm                             Join/manage identity domains
+
+pkttyagent --process $$           Polkit authentication agent
+pkaction --verbose                List Polkit actions
+pkcheck --action-id ACTION        Check authorization
+pkexec COMMAND                    Run via Polkit
+
+/etc/polkit-1/rules.d/            JavaScript Polkit rules
+/etc/polkit-1/localauthority/     Legacy Local Authority
+.pkla files                       Legacy Polkit rules
+
+/etc/pam.d/                       PAM configuration
+pam_pwquality.so                  Password quality module
+pam_pwhistory.so                  Password history module
+
+Example:
+    password required pam_pwhistory.so remember=5
+
+Example MFA-style PAM entries:
+    auth required pam_google_authenticator.so
+    auth required pam_yubico.so id=<client_id> authfile=
+
+Lockout example:
+    auth required pam_tally2.so onerr=fail deny=5 unlock_time=600
+
+
+================================================================================
+31. PASSWORD POLICY
+================================================================================
+
+/etc/security/pwquality.conf     Password complexity
+minlen = 12                      Minimum length
+minclass = 4                     Character classes
+
+sudo chage -M 90 USER            Maximum password age
+sudo passwd -u USER              Unlock password
+
+/etc/login.defs                  Account defaults
+
+
+================================================================================
+32. SSH
+================================================================================
+
+ssh user@host                    Remote shell
+ssh -p 2222 user@host            Alternate port
+ssh-keygen                       Generate key
+ssh-agent                        Key agent
+ssh-add ~/.ssh/id_ed25519        Add key
+sftp user@host                   Secure file transfer
+
+/etc/ssh/sshd_config              SSH daemon configuration
+
+systemctl restart sshd           Restart SSH service
+ss -tulpn | grep :22             Verify listening port
+
+SFTP chroot                      Restricted file transfer environment
+
+SSH HARDENING CONCEPTS
+    Protocol
+    Authentication
+    Key-based login
+    PermitRootLogin
+    PasswordAuthentication
+    AllowUsers
+    AllowGroups
+
+
+================================================================================
+33. SSH / TLS EXAMPLE
+================================================================================
+
+sed -i 's/^#\?Protocol .*/Protocol 2/' /etc/ssh/sshd_config
+
+sudo systemctl restart sshd
+
+openssl req -x509 -newkey rsa:2048 \
+    -keyout dev.key \
+    -out dev.crt \
+    -days 365 \
+    -nodes \
+    -subj "/CN=dev.example.local"
+
+openssl                           OpenSSL toolkit
+LibreSSL                         Alternative TLS/crypto toolkit
+Let's Encrypt                     Free public CA
+
+sslscan HOST                      TLS configuration scanner
+
+
+================================================================================
+34. SELINUX
+================================================================================
+
+getenforce                         SELinux mode
+sestatus                           SELinux status
+getsebool -a                      Show SELinux booleans
+setsebool                          Change SELinux boolean
+semanage                           Manage SELinux policy
+ls -Z                              Show security contexts
+ps -Z                              Show process contexts
+restorecon                         Restore expected context
+chcon                              Change context directly
+audit2allow                        Generate policy suggestions
+sealert                            Analyze SELinux denials
+
+[!] chcon is usually temporary.
+Prefer restorecon / semanage for persistent configuration.
+
+
+================================================================================
+35. ACCESS CONTROL / SUDO
+================================================================================
+
+/etc/sudoers                       sudo policy
+sudo visudo                        Safely edit sudoers
+sudo -l                            Show current sudo privileges
+
+Example:
+    alice ALL=(ALL) /usr/bin/systemctl restart apache2
+
+NOPASSWD                           Run without password
+NOEXEC                             Restrict command execution
+wheel                              Common admin group
+
+
+================================================================================
+36. FILE INTEGRITY / SECURITY
+================================================================================
+
+AIDE                               File integrity monitoring
+rkhunter                           Rootkit checks
+chkrootkit                         Rootkit checks
+rpm -V PACKAGE                     Verify RPM files
+debsums                             Verify Debian package files
+
+YARA                               Malware / pattern matching
+Wazuh                              SIEM / endpoint monitoring
+auditd                             Host auditing
+OpenSCAP                           Compliance / security scanning
+CIS Benchmarks                     Configuration hardening guidance
+DISA STIGs                         Security configuration standards
+FIPS                               Cryptographic validation standard
+
+
+================================================================================
+37. CRYPTOGRAPHY
+================================================================================
+
+GPG                                GNU Privacy Guard
+gpg --full-generate-key            Create GPG key
+gpg --list-keys                   List keys
+
+LUKS2                              Linux disk encryption
+cryptsetup                         LUKS management
+Argon2                             Password hashing/KDF
+SHA-256                            Cryptographic hash
+HMAC                               Keyed hash
+OpenSSL                            Crypto/TLS toolkit
+LibreSSL                           Crypto/TLS toolkit
+
+ZuluCrypt                          GUI-oriented encrypted volume tool
+
+
+================================================================================
+38. DISK ENCRYPTION
+================================================================================
+
+cryptsetup luksFormat DEVICE      Create LUKS volume [!]
+cryptsetup luksOpen DEVICE NAME   Open encrypted volume
+cryptsetup luksClose NAME         Close volume
+cryptsetup luksDump DEVICE        Show LUKS metadata
+
+LUKS2 + Argon2                     Modern Linux disk-encryption setup
+
+
+================================================================================
+39. CONTAINERS
+================================================================================
+
+Docker
+    docker run IMAGE
+    docker run -d IMAGE
+    docker start NAME
+    docker stop NAME
+    docker rm NAME
+    docker ps
+    docker ps -a
+    docker images
+    docker logs NAME
+    docker exec -it NAME sh
+    docker system prune             Remove unused Docker data [!]
+
+Example:
+    docker run -d --network host --name web-host nginx
+
+Dockerfile keywords:
+    FROM
+    USER
+    ENTRYPOINT
+    CMD
+
+Container networking:
+    bridge
+    host
+    none
+    macvlan
+    ipvlan
+    overlay
+
+Podman                            Daemonless container engine
+containerd                        Container runtime
+runC                              OCI runtime
+Docker Swarm                      Container orchestration
+
+
+================================================================================
+40. QEMU / KVM / LIBVIRT
+================================================================================
+
+QEMU                               Machine emulator / virtualizer
+KVM                                Kernel virtualization
+libvirt                            Virtualization management API
+virsh                              libvirt CLI
+virt-manager                       libvirt GUI
+
+virtIO                             Paravirtualized device family
+virtio-net                         Virtual NIC
+virtio-blk                         Virtual block device
+virtio-scsi                        Virtual SCSI controller
+virtio-rng                         Virtual RNG device
+
+virsh list --all                   List VMs
+virsh start VM                     Start VM
+virsh shutdown VM                  ACPI shutdown
+virsh destroy VM                   Force stop [!]
+virsh console VM                   Console access
+virsh dominfo VM                   VM information
+
+Disk formats:
+    QCOW2                           QEMU/KVM
+    VMDK                            VMware
+    VDI                             VirtualBox
+
+
+================================================================================
+41. WEB SERVERS
+================================================================================
+
+/etc/nginx/nginx.conf              Nginx configuration
+/etc/httpd/conf/httpd.conf         Apache HTTPD configuration
+
+nginx -t                           Test Nginx config
+systemctl reload nginx             Reload Nginx
+
+systemctl status httpd             Apache status
+systemctl reload httpd             Reload Apache
+
+
+================================================================================
+42. CLOUD / CONFIGURATION MANAGEMENT
+================================================================================
+
+Ansible                            Agentless automation
+    SSH
+    WinRM
+
+Puppet                             Agent-based configuration
+OpenTofu                           Infrastructure as Code
+Kubernetes                         Container orchestration
+
+Ansible concepts:
+    Facts
+    Collections
+    Modules
+    Playbooks
+    Roles
+
+OpenTofu concepts:
+    Providers
+    Resources
+    State
+    Variables
+
+Kubernetes concepts:
+    Pods
+    Deployments
+    Services
+
+Cloud-init                         Instance initialization
+Kickstart                          Automated RHEL installation
+GitOps                             Git-driven operations
+DevSecOps                          Security integrated into DevOps
+Shift-left testing                Find problems earlier
+
+
+================================================================================
+43. CI/CD
+================================================================================
+
+GitLab example:
+    glab pipeline run --ref main
+
+Trivy                              Container / dependency scanning
+Snyk                               Dependency / application security
+Syft                               SBOM generation
+CycloneDX                          SBOM standard/tooling
+Argo CD                            GitOps deployment
+Flux                               GitOps deployment
+
+SBOM                               Software Bill of Materials
+GPG                                Signing / verification
+CI/CD                              Continuous integration / delivery
+
+
+================================================================================
+44. BASH SCRIPTING
+================================================================================
+
+#!/usr/bin/env bash                  Shebang
+
+if condition; then
+    command
+else
+    command
+fi
+
+case "$var" in
+    value) command ;;
+    *)     command ;;
+esac
+
+for x in ...; do
+    command
+done
+
+while condition; do
+    command
+done
+
+until condition; do
+    command
+done
+
+((expression))                      Arithmetic evaluation
+[[ condition ]]                     Bash conditional expression
+
+-eq                                 Equal numbers
+-ne                                 Not equal numbers
+-gt                                 Greater than
+-lt                                 Less than
+-ge                                 Greater/equal
+-le                                 Less/equal
+
+= / ==                              String equality
+!=                                 String inequality
+=~                                 Regex match
+< / >                               String comparison
+<= / >=                             String comparison in [[ ]]
+
+-d PATH                             Directory exists
+-f PATH                             Regular file exists
+-n STRING                           String not empty
+-z STRING                           String empty
+!                                   NOT
+
+set -e                              Exit on command failure
+set -u                              Error on unset variables
+set -x                              Trace commands
+set -o pipefail                     Pipeline failure detection
+
+export VAR=value                    Export variable
+local VAR=value                     Function-local variable
+unset VAR                           Remove variable
+
+echo $?                             Exit code
+exit 0                              Success
+exit 1                              Failure
+
+Protect variables:
+    "$var"
+
+Do not write:
+    $var
+
+IFS                                 Input Field Separator
+printf                              Preferred formatted output
+OFS                                 awk Output Field Separator
+
+
+================================================================================
+45. BASH COMMAND GROUPS
+================================================================================
+
+(command1; command2)               Subshell group
+{ command1; command2; }             Current shell group
+
+Example:
+    ( echo "task started"; sleep 1; echo "task complete" )
+
+Background:
+    command &
+
+Separate output:
+    command >output.txt 2>error.txt
+
+Everything:
+    command >output.txt 2>&1
+
+
+================================================================================
+46. PYTHON
+================================================================================
+
+python3 --version                   Python version
+python3                             Python interpreter
+python3 -m venv env-name            Create virtual environment
+source env-name/bin/activate        Activate venv
+deactivate                          Leave venv
+
+pip install PACKAGE                Install package
+pip freeze > requirements.txt       Freeze dependencies
+pip install -r requirements.txt     Install requirements
+
+import math                         Import module
+help(math)                          Module documentation
+dir(math)                           Module/object members
+type(value)                         Object type
+math                                Mathematics
+random                              Random values
+datetime                            Dates/times
+os                                  OS interaction
+sys                                 Python runtime
+statistics                          Statistics
+time                                Time functions
+json                                JSON
+collections                         Specialized containers
+requests                            HTTP requests
+
+LIST
+    ["apple", "banana"]
+
+DICTIONARY
+    {"name": "Alice", "age": 30}
+
+PEP 8                               Python style guide
+flake8                              Python linting
+
+
+================================================================================
+47. GIT
+================================================================================
+
+git init                            Initialize repository
+git clone URL                       Clone repository
+git config                          Git configuration
+
+git status                          Working tree status
+git add FILE                        Stage file
+git add .                           Stage everything
+git commit -m "message"             Commit
+git log                             History
+git diff                            Changes
+git branch                          Branches
+git checkout BRANCH                 Switch branch
+git switch BRANCH                   Modern branch switch
+git merge BRANCH                    Merge branch
+git rebase BRANCH                   Rebase branch
+git fetch                           Download remote refs
+git pull                            Fetch + merge/rebase
+git push origin main                Push branch
+git tag                             Tags
+git stash                           Temporarily store changes
+git reset                           Reset state [!]
+
+.gitignore                          Ignore rules
+
+
+================================================================================
+48. SNMP / OBSERVABILITY
+================================================================================
+
+snmpget                             Get one OID value
+snmpwalk                            Walk an SNMP tree
+
+SLI                                 Service Level Indicator
+SLO                                 Service Level Objective
+SLA                                 Service Level Agreement
+
+
+================================================================================
+49. NETWORK TROUBLESHOOTING
+================================================================================
+
+1. ip addr
+2. ip link
+3. ip route
+4. ip neigh
+5. ping
+6. ss
+7. dig
+8. tracepath / traceroute
+9. mtr
+10. tcpdump
+11. ethtool
+12. lsof -i
+
+Check:
+    Interface
+    Address
+    Route
+    DNS
+    Listening service
+    Firewall
+    Packets
+
+
+================================================================================
+50. STORAGE TROUBLESHOOTING
+================================================================================
+
+1. lsblk
+2. blkid
+3. df -h
+4. du -sh
+5. findmnt
+6. mount
+7. dmesg
+8. smartctl
+9. /proc/mounts
+10. /proc/mdstat
+
+RAID:
+    cat /proc/mdstat
+    mdadm --detail /dev/md0
+
+LVM:
+    pvs
+    vgs
+    lvs
+
+
+================================================================================
+51. PROCESS TROUBLESHOOTING
+================================================================================
+
+1. ps aux
+2. pstree
+3. top / htop
+4. systemctl status
+5. journalctl -u SERVICE
+6. lsof -p PID
+7. strace -p PID
+8. pidstat
+9. dmesg
+
+
+================================================================================
+52. BOOT TROUBLESHOOTING
+================================================================================
+
+1. systemd-analyze
+2. systemd-analyze blame
+3. journalctl -b
+4. dmesg
+5. lsmod
+6. lspci
+7. lsblk
+8. findmnt
+9. df -h
+
+GRUB:
+    update-grub
+    grub2-mkconfig
+
+
+================================================================================
+53. USEFUL SECURITY / ADMIN COMMANDS
+================================================================================
+
+sudo -l                            Show sudo rights
+sudo visudo                        Safely edit sudoers
+id USER                            Identity
+getent passwd USER                NSS lookup
+passwd -S USER                    Password status
+chage -l USER                     Password aging
+last USER                          Login history
+ps aux                             Processes
+ss -tulpn                          Listening sockets
+lsof -i                            Network files/sockets
+journalctl                         Logs
+ausearch                           Audit logs
+sestatus                           SELinux status
+ls -Z                              Security contexts
+find / -perm -4000 2>/dev/null    Find SUID files
+find / -perm -2000 2>/dev/null    Find SGID files
+find / -type f -perm /o+w         World-writable files
+
+
+================================================================================
+54. EXAMPLE ADMIN TASKS
+================================================================================
+
+Create service account:
+    sudo useradd -s /sbin/nologin backupbot
+
+Create normal user:
+    sudo useradd -c "Jane Doe - Engineer" \
+        -m -s /bin/bash -e 2028-12-31 -u 1050 jane
+
+Check user:
+    id jane
+    getent passwd jane
+
+Unlock user:
+    sudo passwd -u jane
+
+Expire password:
+    sudo chage -M 90 jane
+
+Check service:
+    systemctl status ssh
+
+Reload service:
+    sudo systemctl reload nginx
+
+Find open port:
+    ss -tulpn
+
+Find process:
+    ps aux | grep NAME
+
+Watch logs:
+    journalctl -fu SERVICE
+
+
+================================================================================
+55. COMMAND CONCEPTS TO MASTER
+================================================================================
+
+sudo !!                            History + privilege
+source ~/.bashrc                   Current-shell configuration reload
+command                             Bypass alias/function
+exec                                Replace shell process
+nohup                               Survive logout
+tee                                 Write + display
+xargs                               Convert stdin to arguments
+awk                                 Structured text processing
+sed                                 Stream editing
+grep                                Pattern searching
+cut                                 Field extraction
+sort / uniq                         Ordering + deduplication
+tr                                  Character translation
+wc                                  Counting
+head / tail / less                  File inspection
+
+Know these deeply:
+    >
+    >>
+    2>
+    2>&1
+    |
+    <
+    <<
+    <<<
+
+
+================================================================================
+56. IMPORTANT FILES TO KNOW
+================================================================================
+
+/etc/passwd                        Users
+/etc/shadow                        Password hashes
+/etc/group                         Groups
+/etc/skel                          New-user template
+/etc/login.defs                    Account defaults
+/etc/profile                       Global shell startup
+~/.bashrc                          Interactive Bash configuration
+
+/etc/fstab                         Persistent mounts
+/etc/mtab                          Mount reference
+/etc/hosts                         Local hostname mapping
+/etc/resolv.conf                   DNS resolver configuration
+/etc/nsswitch.conf                 Name-service resolution
+/etc/netplan/                      Ubuntu networking
+/etc/NetworkManager/               NetworkManager
+
+/etc/ssh/sshd_config               SSH server
+/etc/sudoers                       sudo policy
+/etc/security/pwquality.conf       Password quality
+/etc/pam.d/                        PAM
+/etc/polkit-1/                     Polkit
+
+/etc/modprobe.d/                   Kernel module config
+/etc/nginx/nginx.conf              Nginx
+/etc/httpd/conf/httpd.conf         Apache
+
+/var/log/                          Traditional logs
+/proc/                             Kernel/process information
+/sys/                              Kernel device information
+
+
+================================================================================
+57. SPECIAL DEVICES
+================================================================================
+
+/dev/null                          Black hole
+/dev/zero                          Zero-byte generator
+/dev/urandom                       Random data
+
+Examples:
+    command > /dev/null
+    dd if=/dev/zero of=testfile bs=1M count=100
+
+
+================================================================================
+58. LINUX+ MUSCLE MEMORY
+================================================================================
+
+NAVIGATE
+    pwd
+    ls -la
+    cd
+    find
+    tree
+
+INSPECT
+    file
+    stat
+    lsblk
+    df -h
+    free -h
+    ps aux
+    ss -tulpn
+    journalctl
+    dmesg
+
+TEXT
+    grep
+    sed
+    awk
+    cut
+    sort
+    uniq
+    tr
+    wc
+
+PROCESSES
+    ps
+    top
+    htop
+    pstree
+    jobs
+    bg
+    fg
+    kill
+    nice
+    renice
+    strace
+
+STORAGE
+    lsblk
+    blkid
+    mount
+    findmnt
+    df
+    du
+    fdisk
+    gdisk
+    parted
+    lvm
+    mdadm
+
+NETWORK
+    ip
+    ss
+    ping
+    dig
+    traceroute
+    mtr
+    tcpdump
+    nc
+    nmap
+    ethtool
+
+SYSTEMD
+    systemctl
+    journalctl
+    systemd-analyze
+
+SECURITY
+    chmod
+    chown
+    setfacl
+    sudo
+    visudo
+    auditd
+    ausearch
+    SELinux
+    PAM
+    Polkit
+    SSH
+
+AUTOMATION
+    Bash
+    Python
+    Ansible
+    OpenTofu
+    Kubernetes
+    Git
+
+
+================================================================================
+59. DANGER ZONE
+================================================================================
+
+[!] rm -rf                          Recursive deletion
+[!] dd                              Raw disk overwrite
+[!] shred                           File destruction
+[!] mkfs                            Create filesystem
+[!] fsck                            Filesystem repair/check
+[!] fdisk / gdisk / parted         Partition changes
+[!] mdadm --create                 RAID creation
+[!] lvremove                       LVM removal
+[!] cryptsetup luksFormat          Encryption creation
+[!] systemctl mask                 Can prevent critical services
+[!] kill -9                        Immediate process termination
+[!] docker system prune            Remove unused Docker objects
+
+ALWAYS verify:
+    lsblk
+    pwd
+    whoami
+    target device
+    target filesystem
+    current environment
+
+Before destructive commands.
+
+
+================================================================================
+60. QUICK COMMAND CHAINING
+================================================================================
+
+command1 && command2                Success -> next
+command1 || command2                Failure -> next
+command1 ; command2                 Always run both
+command &                           Background
+command | command                   Pipeline
+
+Example:
+    mkdir backup && cp /etc/hosts backup/
+
+Example:
+    echo "task started"; sleep 1; echo "task complete"
+
+Example:
+    command >output.txt 2>&1
+
+
+================================================================================
+61. LINUX+ CORE DOCTRINE
+================================================================================
+
+BUILD
+    Understand syntax
+    Understand options
+    Run command
+    Read output
+
+ATTACK
+    Understand failure modes
+    Understand privileges
+    Understand unsafe states
+
+DETECT
+    Logs
+    Processes
+    Network
+    Files
+    Audit data
+
+IMPROVE
+    Automate
+    Harden
+    Monitor
+    Document
+
+The goal is not memorizing commands.
+The goal is knowing:
+    WHAT
+    WHY
+    WHEN
+    SYNTAX
+    OUTPUT
+    FAILURE MODE
+
+
+================================================================================
+END NINJA(1)
+================================================================================
+
+================================================================================
+                         NINJA COMMAND README
+================================================================================
+
+CORE NINJA COMMANDS
+-------------------
+
+ninja
+    Open the full Ninja Linux+ / Superuser cheat sheet with less.
+
+ninjaedit
+    Edit the Ninja cheat sheet.
+
+ninjatheme
+    Open the interactive terminal theme editor.
+
+bashrl
+    Reload ~/.bashrc.
+
+superuser
+    Alias for ninja.
+
+poweruser
+    Alias for ninja.
+
+_ninja
+    Alias for ninja.
+
+
+NINJA BACKUP
+------------
+
+ninjabackup
+    Create a complete portable Ninja backup.
+
+ninjabackup --help
+    Show backup help and usage.
+
+ninjabackup --version
+    Show ninjabackup version.
+
+Backup includes:
+    termtheme
+    ninja-cheatsheet.txt
+    ninjabackup
+    ninjarestore
+    theme configuration
+    Ninja Bash integration snippet
+    dependency inventory
+    README
+    selected optional libraries
+
+Backup location:
+    ~/ninja-backups/
+
+
+NINJA RESTORE
+-------------
+
+ninjarestore
+    Start interactive Ninja restore.
+
+ninjarestore --help
+    Show restore help and usage.
+
+ninjarestore --list
+    List available Ninja backups.
+
+ninjarestore --version
+    Show ninjarestore version.
+
+ninjarestore --rollback
+    Restore the most recently selected rollback point
+    or choose an available restore point interactively.
+
+Restore safety:
+    Validate archive
+    Verify SHA256 when available
+    Check archive paths
+    Show manifest
+    Ask before restoring
+    Create rollback
+    Restore Ninja files
+    Optionally integrate Bash
+    Validate ~/.bashrc
+
+
+NINJA FILE LOCATIONS
+--------------------
+
+Ninja backup script:
+    ~/.local/bin/ninjabackup
+
+Ninja restore script:
+    ~/.local/bin/ninjarestore
+
+Theme selector:
+    ~/termtheme
+
+Cheat sheet:
+    ~/.local/share/ninja-cheatsheet.txt
+
+Theme configuration:
+    ~/.config/termtheme/
+
+Backup archives:
+    ~/ninja-backups/
+
+Restore rollback points:
+    ~/.ninja-restore-backups/
+
+
+NINJA QUICK WORKFLOW
+--------------------
+
+Learn:
+    ninja
+
+Edit:
+    ninjaedit
+
+Theme:
+    ninjatheme
+
+Reload Bash:
+    bashrl
+
+Backup:
+    ninjabackup
+
+Restore:
+    ninjarestore
+
+List backups:
+    ninjarestore --list
+
+Rollback:
+    ninjarestore --rollback
+
+Help:
+    ninjabackup --help
+    ninjarestore --help
+
+
+IMPORTANT
+---------
+
+Ninja is designed to be additive and portable.
+
+Do not blindly replace a destination user's ~/.bashrc.
+
+Use:
+    bashrl
+
+after making Bash configuration changes.
+
+================================================================================
+                         END NINJA COMMAND README
+================================================================================
+

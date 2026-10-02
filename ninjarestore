@@ -1,0 +1,789 @@
+#!/usr/bin/env bash
+
+set -u
+
+VERSION="1.0"
+
+BACKUP_DIR="$HOME/ninja-backups"
+TIMESTAMP="$(date +%Y%m%d-%H%M%S)"
+ROLLBACK_DIR="$HOME/.ninja-restore-backups/restore-$TIMESTAMP"
+
+WORK_ROOT=""
+RESTORED_ITEMS=()
+BASHRC_CHANGED="no"
+
+cleanup() {
+    [[ -n "${WORK_ROOT:-}" && -d "$WORK_ROOT" ]] && rm -rf "$WORK_ROOT"
+}
+
+trap cleanup EXIT
+
+# ============================================================
+# HELP
+# ============================================================
+
+show_help() {
+
+    if command -v less >/dev/null 2>&1; then
+        less -R <<'HELP'
+NINJARESTORE(1)
+===============
+
+Restore a portable Ninja backup.
+
+USAGE
+    ninjarestore
+    ninjarestore --list
+    ninjarestore --help
+    ninjarestore --version
+
+RESTORE PROCESS
+    1. Select a Ninja backup archive.
+    2. Validate the TAR archive.
+    3. Verify SHA256 when available.
+    4. Show the backup manifest.
+    5. Ask for confirmation.
+    6. Create a rollback backup of existing Ninja files.
+    7. Restore Ninja core files.
+    8. Restore theme configuration.
+    9. Ask about optional libraries.
+   10. Ask whether Ninja Bash integration should be added.
+   11. Validate ~/.bashrc if modified.
+   12. Show exactly what was restored.
+
+CORE DESTINATIONS
+    ~/termtheme
+    ~/.local/bin/ninjabackup
+    ~/.local/bin/ninjarestore
+    ~/.local/share/ninja-cheatsheet.txt
+    ~/.config/termtheme/
+
+BASH SAFETY
+    ninjarestore does NOT replace ~/.bashrc.
+
+    Bash integration is offered separately.
+
+ROLLBACK
+    Existing Ninja files are backed up before replacement.
+
+    Rollbacks are stored in:
+
+        ~/.ninja-restore-backups/
+
+BACKUPS
+    Default backup location:
+
+        ~/ninja-backups/
+
+Older backups can be restored from another path by entering the
+full path to the .tar.gz archive.
+
+HELP
+    ninjarestore --help
+HELP
+    else
+        cat <<'HELP'
+NINJARESTORE(1)
+
+USAGE
+    ninjarestore
+    ninjarestore --list
+    ninjarestore --help
+    ninjarestore --version
+
+Restores Ninja files and theme configuration with rollback
+protection. The existing ~/.bashrc is never blindly replaced.
+HELP
+    fi
+}
+
+# ============================================================
+# VERSION
+# ============================================================
+
+case "${1:-}" in
+
+    --help|-h)
+        show_help
+        exit 0
+        ;;
+
+    --version|-v)
+        printf 'ninjarestore %s\n' "$VERSION"
+        exit 0
+        ;;
+
+    --list|-l)
+
+        shopt -s nullglob
+        backups=("$BACKUP_DIR"/*.tar.gz)
+        shopt -u nullglob
+
+        if (( ${#backups[@]} == 0 )); then
+            printf 'No Ninja backups found in:\n'
+            printf '  %s\n' "$BACKUP_DIR"
+            exit 0
+        fi
+
+        printf '\n'
+        printf '%s\n' 'NINJA BACKUPS'
+        printf '%s\n' '============='
+        printf '\n'
+
+        for backup in "${backups[@]}"; do
+            ls -lh "$backup"
+        done
+
+        printf '\n'
+        exit 0
+        ;;
+esac
+
+# ============================================================
+# PATH HANDLING
+# ============================================================
+
+expand_path() {
+
+    local path="$1"
+
+    case "$path" in
+        "~")
+            printf '%s\n' "$HOME"
+            ;;
+        "~/"*)
+            printf '%s%s\n' "$HOME" "${path:1}"
+            ;;
+        *)
+            printf '%s\n' "$path"
+            ;;
+    esac
+}
+
+# ============================================================
+# SELECT BACKUP
+# ============================================================
+
+clear
+
+printf '%s\n' '============================================================'
+printf '%s\n' '                   NINJA RESTORE'
+printf '%s\n' '============================================================'
+printf '\n'
+
+BACKUP_FILE=""
+
+shopt -s nullglob
+BACKUPS=("$BACKUP_DIR"/*.tar.gz)
+shopt -u nullglob
+
+if (( ${#BACKUPS[@]} > 0 )); then
+
+    printf 'Available Ninja backups:\n\n'
+
+    for i in "${!BACKUPS[@]}"; do
+        printf '  %d) %s\n' \
+            "$((i+1))" \
+            "$(basename "${BACKUPS[$i]}")"
+    done
+
+    printf '\n'
+    printf '  M) Enter another backup path\n'
+    printf '  Q) Quit\n'
+    printf '\n'
+
+    read -r -p 'Choose: ' backup_choice
+
+    case "${backup_choice,,}" in
+
+        q)
+            exit 0
+            ;;
+
+        m)
+            read -r -p 'Backup path: ' BACKUP_FILE
+            BACKUP_FILE="$(expand_path "$BACKUP_FILE")"
+            ;;
+
+        *)
+            if [[ "$backup_choice" =~ ^[0-9]+$ ]] &&
+               (( backup_choice >= 1 && backup_choice <= ${#BACKUPS[@]} )); then
+
+                BACKUP_FILE="${BACKUPS[$((backup_choice-1))]}"
+
+            else
+
+                printf '\nInvalid selection.\n'
+                exit 1
+
+            fi
+            ;;
+    esac
+
+else
+
+    printf 'No backups found in:\n'
+    printf '  %s\n' "$BACKUP_DIR"
+    printf '\n'
+
+    read -r -p 'Enter backup archive path: ' BACKUP_FILE
+    BACKUP_FILE="$(expand_path "$BACKUP_FILE")"
+
+fi
+
+# ============================================================
+# BASIC VALIDATION
+# ============================================================
+
+if [[ ! -f "$BACKUP_FILE" ]]; then
+    printf '\nERROR: Backup archive does not exist:\n'
+    printf '  %s\n' "$BACKUP_FILE"
+    exit 1
+fi
+
+printf '\n'
+printf 'Selected backup:\n'
+printf '  %s\n' "$BACKUP_FILE"
+
+# ============================================================
+# CREATE WORK AREA
+# ============================================================
+
+WORK_ROOT="$(mktemp -d)"
+ARCHIVE_LIST="$WORK_ROOT/archive-list.txt"
+
+# ============================================================
+# VERIFY ARCHIVE
+# ============================================================
+
+printf '\n'
+printf '%s\n' '[1] VALIDATING ARCHIVE'
+printf '%s\n' '----------------------'
+
+if ! tar -tzf "$BACKUP_FILE" > "$ARCHIVE_LIST" 2>/dev/null; then
+    printf '  [!!] Invalid or corrupted TAR.GZ archive.\n'
+    exit 1
+fi
+
+printf '  [OK] TAR.GZ archive is readable.\n'
+
+# Prevent unsafe path traversal.
+if grep -Eq '(^/)|(^|/)\.\.(/|$)' "$ARCHIVE_LIST"; then
+    printf '  [!!] Unsafe archive path detected.\n'
+    exit 1
+fi
+
+# Require Ninja package root.
+if ! grep -q '^ninja-portable/' "$ARCHIVE_LIST"; then
+    printf '  [!!] This does not appear to be a Ninja backup.\n'
+    exit 1
+fi
+
+printf '  [OK] Ninja package structure detected.\n'
+
+# ============================================================
+# SHA256
+# ============================================================
+
+SHA_FILE="$BACKUP_FILE.sha256"
+
+if [[ -f "$SHA_FILE" ]] &&
+   command -v sha256sum >/dev/null 2>&1; then
+
+    printf '\n'
+    printf '[2] SHA256 VERIFICATION\n'
+    printf '%s\n' '----------------------'
+
+    EXPECTED="$(awk 'NR==1 {print $1}' "$SHA_FILE")"
+    ACTUAL="$(sha256sum "$BACKUP_FILE" | awk '{print $1}')"
+
+    if [[ -n "$EXPECTED" && "$EXPECTED" == "$ACTUAL" ]]; then
+        printf '  [OK] SHA256 matches.\n'
+    else
+        printf '  [!!] SHA256 verification FAILED.\n'
+        printf '  Expected: %s\n' "$EXPECTED"
+        printf '  Actual:   %s\n' "$ACTUAL"
+        exit 1
+    fi
+
+else
+
+    printf '\n'
+    printf '[2] SHA256 VERIFICATION\n'
+    printf '%s\n' '----------------------'
+    printf '  [--] No SHA256 file available.\n'
+
+fi
+
+# ============================================================
+# EXTRACT
+# ============================================================
+
+printf '\n'
+printf '[3] EXTRACTING TO TEMPORARY LOCATION\n'
+printf '%s\n' '-----------------------------------'
+
+if ! tar --no-same-owner -xzf "$BACKUP_FILE" -C "$WORK_ROOT"; then
+    printf '  [!!] Extraction failed.\n'
+    exit 1
+fi
+
+ROOT="$WORK_ROOT/ninja-portable"
+
+if [[ ! -d "$ROOT" ]]; then
+    printf '  [!!] ninja-portable directory missing.\n'
+    exit 1
+fi
+
+printf '  [OK] Archive extracted.\n'
+
+# ============================================================
+# MANIFEST PREVIEW
+# ============================================================
+
+printf '\n'
+printf '[4] BACKUP CONTENTS\n'
+printf '%s\n' '-------------------'
+
+if [[ -f "$ROOT/dependencies/MANIFEST.txt" ]]; then
+    sed -n '1,100p' "$ROOT/dependencies/MANIFEST.txt"
+else
+    printf '  No manifest found.\n'
+fi
+
+printf '\n'
+
+if [[ -f "$ROOT/README.md" ]]; then
+    printf 'README:\n'
+    printf '  ninja-portable/README.md\n'
+fi
+
+printf '\n'
+
+# ============================================================
+# CONFIRM
+# ============================================================
+
+printf '%s\n' '============================================================'
+printf 'The archive is valid and ready to restore.\n'
+printf '%s\n' '============================================================'
+printf '\n'
+
+printf 'Existing Ninja files will be backed up first.\n'
+printf 'Your complete ~/.bashrc will NOT be overwritten.\n'
+printf '\n'
+
+read -r -p 'Continue with Ninja restore? [y/N]: ' confirm
+
+case "${confirm,,}" in
+    y|yes)
+        ;;
+    *)
+        printf 'Restore cancelled.\n'
+        exit 0
+        ;;
+esac
+
+# ============================================================
+# ROLLBACK
+# ============================================================
+
+printf '\n'
+printf '[5] CREATING ROLLBACK\n'
+printf '%s\n' '---------------------'
+
+mkdir -p "$ROLLBACK_DIR"
+
+backup_existing() {
+
+    local source="$1"
+    local destination="$2"
+
+    if [[ -e "$source" || -L "$source" ]]; then
+        mkdir -p "$(dirname "$destination")"
+        cp -a "$source" "$destination"
+        printf '  [BACKUP] %s\n' "$source"
+    fi
+}
+
+backup_existing \
+    "$HOME/termtheme" \
+    "$ROLLBACK_DIR/termtheme"
+
+backup_existing \
+    "$HOME/.local/bin/ninjabackup" \
+    "$ROLLBACK_DIR/.local/bin/ninjabackup"
+
+backup_existing \
+    "$HOME/.local/bin/ninjarestore" \
+    "$ROLLBACK_DIR/.local/bin/ninjarestore"
+
+backup_existing \
+    "$HOME/.local/share/ninja-cheatsheet.txt" \
+    "$ROLLBACK_DIR/.local/share/ninja-cheatsheet.txt"
+
+backup_existing \
+    "$HOME/.config/termtheme" \
+    "$ROLLBACK_DIR/.config/termtheme"
+
+printf '  [OK] Rollback location:\n'
+printf '  %s\n' "$ROLLBACK_DIR"
+
+# ============================================================
+# RESTORE CORE FILES
+# ============================================================
+
+printf '\n'
+printf '[6] RESTORING NINJA CORE\n'
+printf '%s\n' '------------------------'
+
+restore_file() {
+
+    local source="$1"
+    local destination="$2"
+    local label="$3"
+
+    if [[ ! -f "$source" ]]; then
+        printf '  [--] Not present in backup: %s\n' "$label"
+        return
+    fi
+
+    mkdir -p "$(dirname "$destination")"
+    cp -a "$source" "$destination"
+
+    RESTORED_ITEMS+=("$destination")
+
+    printf '  [OK] %-22s -> %s\n' \
+        "$label" \
+        "$destination"
+}
+
+restore_file \
+    "$ROOT/files/termtheme" \
+    "$HOME/termtheme" \
+    "termtheme"
+
+restore_file \
+    "$ROOT/files/ninja-cheatsheet.txt" \
+    "$HOME/.local/share/ninja-cheatsheet.txt" \
+    "cheat sheet"
+
+restore_file \
+    "$ROOT/files/ninjabackup" \
+    "$HOME/.local/bin/ninjabackup" \
+    "ninjabackup"
+
+restore_file \
+    "$ROOT/files/ninjarestore" \
+    "$HOME/.local/bin/ninjarestore" \
+    "ninjarestore"
+
+chmod +x "$HOME/termtheme" 2>/dev/null || true
+chmod +x "$HOME/.local/bin/ninjabackup" 2>/dev/null || true
+chmod +x "$HOME/.local/bin/ninjarestore" 2>/dev/null || true
+
+# ============================================================
+# RESTORE THEME
+# ============================================================
+
+printf '\n'
+printf '[7] RESTORING THEME CONFIGURATION\n'
+printf '%s\n' '---------------------------------'
+
+if [[ -d "$ROOT/config/termtheme" ]]; then
+
+    mkdir -p "$HOME/.config"
+
+    rm -rf "$HOME/.config/termtheme"
+    cp -a \
+        "$ROOT/config/termtheme" \
+        "$HOME/.config/termtheme"
+
+    RESTORED_ITEMS+=("$HOME/.config/termtheme/")
+
+    printf '  [OK] ~/.config/termtheme/\n'
+
+else
+
+    printf '  [--] Theme configuration not present.\n'
+
+fi
+
+# ============================================================
+# RESTORE DOCUMENTATION / INVENTORY
+# ============================================================
+
+printf '\n'
+printf '[8] RESTORING NINJA DOCUMENTATION\n'
+printf '%s\n' '---------------------------------'
+
+if [[ -f "$ROOT/README.md" ]]; then
+
+    mkdir -p "$HOME/.local/share/ninja"
+
+    cp -a \
+        "$ROOT/README.md" \
+        "$HOME/.local/share/ninja/README.md"
+
+    RESTORED_ITEMS+=("$HOME/.local/share/ninja/README.md")
+
+    printf '  [OK] ~/.local/share/ninja/README.md\n'
+
+fi
+
+if [[ -d "$ROOT/dependencies" ]]; then
+
+    mkdir -p "$HOME/.local/share/ninja/dependencies"
+
+    cp -a \
+        "$ROOT/dependencies"/. \
+        "$HOME/.local/share/ninja/dependencies/"
+
+    RESTORED_ITEMS+=("$HOME/.local/share/ninja/dependencies/")
+
+    printf '  [OK] dependency information\n'
+
+fi
+
+# ============================================================
+# OPTIONAL LIBRARIES
+# ============================================================
+
+printf '\n'
+printf '[9] OPTIONAL LIBRARIES\n'
+printf '%s\n' '----------------------'
+
+OPTIONAL_DIR="$ROOT/optional-libraries"
+
+if [[ -d "$OPTIONAL_DIR" ]]; then
+
+    mapfile -t OPTIONAL_ITEMS < <(
+        find "$OPTIONAL_DIR" -mindepth 1 -maxdepth 1 -printf '%p\n'
+    )
+
+    if (( ${#OPTIONAL_ITEMS[@]} == 0 )); then
+
+        printf '  No optional libraries in backup.\n'
+
+    else
+
+        for item in "${OPTIONAL_ITEMS[@]}"; do
+
+            name="$(basename "$item")"
+
+            printf '\n'
+            printf 'Optional item:\n'
+            printf '  %s\n' "$name"
+
+            read -r -p \
+                "Restore this item? [y/N]: " \
+                include_optional
+
+            case "${include_optional,,}" in
+
+                y|yes)
+
+                    read -r -p \
+                        'Destination directory: ' \
+                        optional_destination
+
+                    optional_destination="$(
+                        expand_path "$optional_destination"
+                    )"
+
+                    if [[ -z "$optional_destination" ]]; then
+                        printf '  [--] No destination. Skipped.\n'
+                        continue
+                    fi
+
+                    mkdir -p "$optional_destination"
+
+                    if cp -a "$item" "$optional_destination/"; then
+                        RESTORED_ITEMS+=(
+                            "$optional_destination/$name"
+                        )
+
+                        printf '  [OK] Restored to:\n'
+                        printf '  %s/%s\n' \
+                            "$optional_destination" "$name"
+                    else
+                        printf '  [!!] Restore failed.\n'
+                    fi
+                    ;;
+
+                *)
+                    printf '  [--] Skipped.\n'
+                    ;;
+            esac
+
+        done
+
+    fi
+
+else
+
+    printf '  No optional libraries in backup.\n'
+
+fi
+
+# ============================================================
+# BASH INTEGRATION
+# ============================================================
+
+printf '\n'
+printf '[10] BASH INTEGRATION\n'
+printf '%s\n' '--------------------'
+
+BASH_SNIPPET="$ROOT/config/bashrc-snippet.sh"
+
+if [[ -f "$BASH_SNIPPET" ]]; then
+
+    printf 'The backup contains a Ninja Bash integration snippet.\n'
+    printf 'It is NOT your complete ~/.bashrc.\n'
+    printf '\n'
+
+    read -r -p \
+        'Add Ninja commands to ~/.bashrc now? [y/N]: ' \
+        install_bash
+
+    case "${install_bash,,}" in
+
+        y|yes)
+
+            if grep -Eq \
+                '^[[:space:]]*(alias ninja=|ninja\(\))' \
+                "$HOME/.bashrc" 2>/dev/null; then
+
+                printf '\n'
+                printf '  [--] Existing Ninja definitions detected.\n'
+                printf '  ~/.bashrc was NOT modified.\n'
+                printf '  Review manually:\n'
+                printf '  %s\n' "$BASH_SNIPPET"
+
+            else
+
+                mkdir -p "$ROLLBACK_DIR"
+
+                cp -a \
+                    "$HOME/.bashrc" \
+                    "$ROLLBACK_DIR/.bashrc"
+
+                {
+                    printf '\n'
+                    printf '%s\n' '# >>> NINJA RESTORE >>>'
+                    cat "$BASH_SNIPPET"
+                    printf '%s\n' '# <<< NINJA RESTORE <<<'
+                } >> "$HOME/.bashrc"
+
+                BASHRC_CHANGED="yes"
+
+                if bash -n "$HOME/.bashrc"; then
+
+                    printf '  [OK] Ninja Bash integration installed.\n'
+                    printf '  [OK] ~/.bashrc syntax check passed.\n'
+
+                else
+
+                    printf '  [!!] ~/.bashrc syntax check FAILED.\n'
+                    printf '  Restoring previous ~/.bashrc...\n'
+
+                    cp -a \
+                        "$ROLLBACK_DIR/.bashrc" \
+                        "$HOME/.bashrc"
+
+                    BASHRC_CHANGED="no"
+
+                    printf '  [OK] Original ~/.bashrc restored.\n'
+                fi
+
+            fi
+            ;;
+
+        *)
+            printf '  [--] Bash integration skipped.\n'
+            printf '  Review manually if required:\n'
+            printf '  %s\n' "$BASH_SNIPPET"
+            ;;
+    esac
+
+else
+
+    printf '  [--] No Bash integration snippet in backup.\n'
+
+fi
+
+# ============================================================
+# FINAL VALIDATION
+# ============================================================
+
+printf '\n'
+printf '[11] FINAL VALIDATION\n'
+printf '%s\n' '--------------------'
+
+if [[ -x "$HOME/termtheme" ]]; then
+    printf '  [OK] ~/termtheme\n'
+fi
+
+if [[ -x "$HOME/.local/bin/ninjabackup" ]]; then
+    printf '  [OK] ~/.local/bin/ninjabackup\n'
+fi
+
+if [[ -x "$HOME/.local/bin/ninjarestore" ]]; then
+    printf '  [OK] ~/.local/bin/ninjarestore\n'
+fi
+
+if [[ -f "$HOME/.local/share/ninja-cheatsheet.txt" ]]; then
+    printf '  [OK] Ninja cheat sheet\n'
+fi
+
+if [[ -d "$HOME/.config/termtheme" ]]; then
+    printf '  [OK] Theme configuration\n'
+fi
+
+# ============================================================
+# SUMMARY
+# ============================================================
+
+printf '\n'
+printf '%s\n' '============================================================'
+printf '%s\n' '                 NINJA RESTORE COMPLETE'
+printf '%s\n' '============================================================'
+printf '\n'
+
+printf 'SOURCE BACKUP\n'
+printf '%s\n' '-------------'
+printf '  %s\n' "$BACKUP_FILE"
+
+printf '\n'
+printf 'RESTORED ITEMS\n'
+printf '%s\n' '--------------'
+
+if (( ${#RESTORED_ITEMS[@]} == 0 )); then
+    printf '  No core items were restored.\n'
+else
+    for item in "${RESTORED_ITEMS[@]}"; do
+        printf '  [OK] %s\n' "$item"
+    done
+fi
+
+printf '\n'
+printf 'ROLLBACK\n'
+printf '%s\n' '--------'
+printf '  %s\n' "$ROLLBACK_DIR"
+
+printf '\n'
+printf 'NEXT STEPS\n'
+printf '%s\n' '----------'
+printf '  bashrl\n'
+printf '  ninja\n'
+printf '  ninjatheme\n'
+printf '  ninjabackup --version\n'
+printf '  ninjarestore --version\n'
+
+if [[ "$BASHRC_CHANGED" == "yes" ]]; then
+    printf '\n'
+    printf '  ~/.bashrc was updated and syntax-checked successfully.\n'
+fi
+
+printf '\n'
+printf '%s\n' '============================================================'
