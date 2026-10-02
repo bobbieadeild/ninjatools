@@ -47,3 +47,4 @@ Never include personal `.bashrc` files, SSH keys, passwords, API keys, private b
 ## License
 
 NINJA is licensed under the [MIT License](LICENSE).
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
