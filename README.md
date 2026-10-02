@@ -41,7 +41,7 @@ Current focus: Linux+, system administration, portability, automation, and relia
 
 ## Security
 
-Never include personal `.bashrc` files, SSH keys, passwords, API keys, private backups, or other sensitive configuration in a public repository.
+No use of personal `.bashrc` files, SSH keys, passwords, API keys, private backups, or other sensitive configuration in a public repository.
 
 ## License
 
